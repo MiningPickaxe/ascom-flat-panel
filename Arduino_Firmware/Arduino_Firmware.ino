@@ -23,7 +23,11 @@ constexpr auto ERROR_INVALID_COMMAND = "ERROR:INVALID_COMMAND";
 
 #define MIN_BRIGHTNESS 0
 #define MAX_BRIGHTNESS 255
-#define PWM_FREQ 20000
+#define PWM_FREQ 5000
+
+// initialize variables to precompute gamma correction table to ensure a perceived linearity to brightness
+constexpr float GAMMA = 2.2;
+int gammaTable[MAX_BRIGHTNESS + 1];
 
 byte brightness = 0;
 byte state = 1;
@@ -32,6 +36,12 @@ int ledPin = 8;
 
 // The `setup` function runs once when you press reset or power the board.
 void setup() {
+    // Precompute gamma correction table
+    for (int i = 0; i < 256; i++) {
+        gammaTable[i] = map(pow((i - MIN_BRIGHTNESS) / float(MAX_BRIGHTNESS - MIN_BRIGHTNESS), GAMMA) * (MAX_BRIGHTNESS - MIN_BRIGHTNESS), 
+                            MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0, 1023);
+    }
+
     // Initialize serial port I/O.
     Serial.begin(57600);
     while (!Serial) {
@@ -98,7 +108,10 @@ void setBrightness() {
     // The nice thing about the `pwm` function is that we can set the frequency
     // to a much higher value (I use 20kHz) This does not work on all pins!
     // For example, it does not work on pin 7 of the Xiao, but it works on pin 8.
-    int value = map(brightness, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0, 1023);
+    
+    // Do a lookup to the precomputed gamma table here
+    // int value = map(brightness, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0, 1023);
+    int value = gammaTable[brightness];
     pwm(ledPin, PWM_FREQ, value);
 }
 
